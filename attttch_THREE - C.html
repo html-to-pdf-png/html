@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Editor</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; }
+        #editor { flex: 1; padding: 10px; }
+        #preview { flex: 1; padding: 10px; border-left: 1px solid #ccc; }
+        textarea { width: 100%; height: 85%; font-family: monospace; font-size: 14px; }
+        #preview-container { position: relative; width: 100%; height: 90%; }
+        #preview-frame { width: 100%; height: 100%; border: none; }
+        #selection-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: none; cursor: crosshair; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div id="editor">
+        <h2>HTML Editor</h2>
+        <textarea id="html-code" oninput="updatePreview()">
+    #greeting# → Random greeting  : "Hi", "Hello", "Dear", "Greetings", "Hi There"<br>
+    #signoff# → Random sign-off  : "Best regards", "Sincerely", "Cheers"<br>
+    #date# → Current date  : "December 15, 2024"<br>
+    #time# → Current time  : "02:30 PM"<br>
+    #RANDOM10# → 10 random characters  : "aB3dEfG7hI"<br>
+    #RANDOMNUM5# → 5 random numbers  : "74923"<br>
+    #letters6# → 6 lowercase letters  : "abcdef"<br>
+    #LETTERS8# → 8 uppercase letters  : "ABCDEFGH"<br>
+    #typo5# → Word with typo  : "helol" (instead of "hello")<br>
+    #numrange:10-50# → Random number between 10 and 50  : "37"<br>
+        </textarea>
+    </div>
+    <div id="preview">
+        <h2>Preview</h2>
+        <button onclick="startSelection('png')">PNG (invoice-XXXXXXXXXXX.png)</button>
+        <button onclick="startSelection('pdf')">PDF (invoice-XXXXXXXXXXX.pdf)</button>
+        <div id="preview-container">
+            <iframe id="preview-frame"></iframe>
+            <div id="selection-overlay"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectionBox;
+        let startX, startY;
+        let currentFormat;
+
+        const defaults = {
+            email: "john.doe@example.com",
+            sender: "Support Team",
+            senderemail: "support@company.com"
+        };
+
+        function updatePreview() {
+            let code = document.getElementById('html-code').value;
+            code = replacePlaceholders(code);
+            const frame = document.getElementById('preview-frame');
+            frame.srcdoc = code;
+        }
+
+        function replacePlaceholders(code) {
+            const email = defaults.email;
+            const sender = defaults.sender;
+            const senderemail = defaults.senderemail;
+
+            let firstname = '';
+            if (email) {
+                const username = email.split('@')[0];
+                const parts = username.split('.');
+                if (parts[0]) {
+                    firstname = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+                }
+            }
+            const greetings = ["Hi", "Hello", "Dear", "Greetings"];
+            const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+            const signoffs = ["Best regards", "Sincerely", "Cheers", "Regards", "Warm regards"];
+            const signoff = signoffs[Math.floor(Math.random() * signoffs.length)];
+            const now = new Date();
+            const date = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            code = code.replace(/#firstname#/g, firstname);
+            code = code.replace(/#email#/g, email);
+            code = code.replace(/#sender#/g, sender);
+            code = code.replace(/#senderemail#/g, senderemail);
+            code = code.replace(/#greeting#/g, greeting);
+            code = code.replace(/#signoff#/g, signoff);
+            code = code.replace(/#date#/g, date);
+            code = code.replace(/#time#/g, time);
+            code = code.replace(/#RANDOM(\d+)#/g, (match, num) => {
+                const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let str = '';
+                for (let i = 0; i < parseInt(num); i++) {
+                    str += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return str;
+            });
+            code = code.replace(/#RANDOMNUM(\d+)#/g, (match, num) => {
+                const chars = '0123456789';
+                let str = '';
+                for (let i = 0; i < parseInt(num); i++) {
+                    str += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return str;
+            });
+            code = code.replace(/#letters(\d+)#/g, (match, num) => {
+                const chars = 'abcdefghijklmnopqrstuvwxyz';
+                let str = '';
+                for (let i = 0; i < parseInt(num); i++) {
+                    str += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return str;
+            });
+            code = code.replace(/#LETTERS(\d+)#/g, (match, num) => {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                let str = '';
+                for (let i = 0; i < parseInt(num); i++) {
+                    str += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return str;
+            });
+            code = code.replace(/#typo(\d+)#/g, (match, num) => {
+                const chars = 'abcdefghijklmnopqrstuvwxyz';
+                let str = '';
+                for (let i = 0; i < parseInt(num); i++) {
+                    str += chars[Math.floor(Math.random() * chars.length)];
+                }
+                if (str.length > 1) {
+                    const pos = Math.floor(Math.random() * (str.length - 1));
+                    str = str.slice(0, pos) + str[pos + 1] + str[pos] + str.slice(pos + 2);
+                }
+                return str;
+            });
+            code = code.replace(/#numrange:(\d+)-(\d+)#/g, (match, min, max) => {
+                min = parseInt(min);
+                max = parseInt(max);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            });
+
+            return code;
+        }
+
+        function generateInvoiceFilename(ext) {
+            const randomNum = Math.floor(10000000000 + Math.random() * 90000000000);
+            return `invoice-${randomNum}.${ext}`;
+        }
+
+        function startSelection(format) {
+            currentFormat = format;
+            const overlay = document.getElementById('selection-overlay');
+            overlay.style.display = 'block';
+            overlay.innerHTML = '';
+
+            overlay.onmousedown = (e) => {
+                startX = e.offsetX;
+                startY = e.offsetY;
+                selectionBox = document.createElement('div');
+                selectionBox.style.position = 'absolute';
+                selectionBox.style.border = '2px dashed #ff0000';
+                selectionBox.style.background = 'rgba(255,0,0,0.1)';
+                overlay.appendChild(selectionBox);
+            };
+
+            overlay.onmousemove = (e) => {
+                if (!selectionBox) return;
+                const width = e.offsetX - startX;
+                const height = e.offsetY - startY;
+                selectionBox.style.left = `${Math.min(startX, e.offsetX)}px`;
+                selectionBox.style.top = `${Math.min(startY, e.offsetY)}px`;
+                selectionBox.style.width = `${Math.abs(width)}px`;
+                selectionBox.style.height = `${Math.abs(height)}px`;
+            };
+
+            overlay.onmouseup = (e) => {
+                if (selectionBox) {
+                    const rect = {
+                        x: parseInt(selectionBox.style.left),
+                        y: parseInt(selectionBox.style.top),
+                        width: parseInt(selectionBox.style.width),
+                        height: parseInt(selectionBox.style.height)
+                    };
+                    if (rect.width > 10 && rect.height > 10) {
+                        captureSelection(rect, currentFormat);
+                    }
+                    overlay.removeChild(selectionBox);
+                    selectionBox = null;
+                }
+                overlay.style.display = 'none';
+                overlay.onmousedown = null;
+                overlay.onmousemove = null;
+                overlay.onmouseup = null;
+            };
+        }
+
+        function captureSelection(rect, format) {
+            const frame = document.getElementById('preview-frame');
+            html2canvas(frame.contentDocument.body, {
+                scale: 1,
+                logging: false,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: null
+            }).then(canvas => {
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = rect.width;
+                cropCanvas.height = rect.height;
+                const ctx = cropCanvas.getContext('2d');
+                ctx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+
+                if (format === 'png') {
+                    const link = document.createElement('a');
+                    link.download = generateInvoiceFilename('png');
+                    link.href = cropCanvas.toDataURL('image/png');
+                    link.click();
+                } else if (format === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: rect.width > rect.height ? 'landscape' : 'portrait',
+                        unit: 'px',
+                        format: [rect.width, rect.height],
+                        compress: true
+                    });
+
+                    const imgData = cropCanvas.toDataURL('image/jpeg', 0.6);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, rect.width, rect.height, undefined, 'FAST');
+                    pdf.save(generateInvoiceFilename('pdf'));
+                }
+            }).catch(error => {
+                console.error('Capture error:', error);
+                alert('...............');
+            });
+        }
+
+        // Initial load
+        updatePreview();
+    </script>
+</body>
+</html>
